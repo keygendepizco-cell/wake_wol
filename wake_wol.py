@@ -393,12 +393,12 @@ def sniff_worker(interface: str, registry: DeviceRegistry) -> None:
 
     logger.info("Capture stopped on %s", interface)
 
-def wait_server_to_be_online(target_host: str) -> bool:
+def wait_server_to_be_online(target_ip: str) -> bool:
     subprocess.run(
             [
              "timeout", "300",
              "bash", "-c",
-             "'while", "!", "ping", "-c", "1", "-W", "1", f"{target_host}", "&>/dev/null;",
+             "'while", "!", "ping", "-c", "1", "-W", "1", f"{target_ip}", "&>/dev/null;",
               "do", "sleep", "1;",
              "done'"
             ],
