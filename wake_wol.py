@@ -396,7 +396,7 @@ def sniff_worker(interface: str, registry: DeviceRegistry) -> None:
 def wait_server_to_be_online(target_ip: str) -> bool:
     subprocess.run(
         f"timeout 300 bash -c 'while ! ping -c 1 -W 1 {target_ip} &>/dev/null; do sleep 1; done'",
-        shell= True,
+        shell=True,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False
