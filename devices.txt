@@ -1,1 +1,1 @@
-ens33;192.168.0.129;1234;AA:BB:CC:DD:EE:FF;1800;
+ens33;192.168.0.129;1234;AA:BB:CC:DD:EE:FF;1800;ollama.homelab.ai;aiuser,/home/aiuser/.ssh//id_ed25519;/home/ollama/docker/

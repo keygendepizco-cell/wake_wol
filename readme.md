@@ -18,7 +18,8 @@ Use this when your spelling AI inference runs on a separate on-premise machine t
 
 ## Installation
 
-Use [install.sh](install.sh). It installs the service under `/opt/wake` by default, creates a systemd unit from the example, creates `devices.txt`, and can interactively add machines (interface, IP, port, MAC, cooldown). Run as root:
+Use [install.sh](install.sh). It installs the service under `/opt/wake` by default, creates a systemd unit from the example, creates `devices.txt`, and can interactively add machines (interface, IP, port, MAC, cooldown). Optionally you can provide SSH Connection information if you dont have ollama starting directly on bootup
+Run as root:
 
 ```bash
 sudo ./install.sh

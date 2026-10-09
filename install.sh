@@ -85,8 +85,8 @@ fi
 DEVICES_FILE="${INSTALL_DIR}/devices.txt"
 if [[ ! -f "${DEVICES_FILE}" ]]; then
     touch "${DEVICES_FILE}"
-    echo "# interface;target_ip;target_port;mac_address[;cooldown_seconds]" >> "${DEVICES_FILE}"
-    echo "# Example: ens33;192.168.0.129;11434;AA:BB:CC:DD:EE:FF;1800" >> "${DEVICES_FILE}"
+    echo "# interface;target_ip;target_port;mac_address;cooldown_seconds;username;keyfile_path[;cwd]" >> "${DEVICES_FILE}"
+    echo "# Example: ens33;192.168.0.129;11434;AA:BB:CC:DD:EE:FF;1800;user;~/.ssh/id_rsa;/tmp/composing/ollama" >> "${DEVICES_FILE}"
 fi
 
 # Systemd unit: use INSTALL_DIR and set WorkingDirectory so devices.txt is found
@@ -129,10 +129,10 @@ fi
 # Interactive: add machines
 add_device_line() {
     local iface ip port mac cooldown
-    iface="$1"; ip="$2"; port="$3"; mac="$4"; cooldown="${5:-1800}"
+    iface="$1"; ip="$2"; port="$3"; mac="$4"; host="$5"; user="$6"; keyfile_path="$7"; cwd="${8:-~/docker}";cooldown="${9:-1800}"
     # Normalize MAC to colons
     mac="$(echo "$mac" | sed -E 's/[-:]//g' | sed 's/\(..\)/\1:/g;s/:$//')"
-    echo "${iface};${ip};${port};${mac};${cooldown};" >> "${DEVICES_FILE}"
+    echo "${iface};${ip};${port};${mac};${cooldown};${host};${user};${keyfile_path};${cwd}" >> "${DEVICES_FILE}"
 }
 
 if [[ -z "${NO_INTERACTIVE}" ]]; then
@@ -149,8 +149,22 @@ if [[ -z "${NO_INTERACTIVE}" ]]; then
         read -r -p "MAC address (WoL): " mac
         read -r -p "Cooldown seconds [1800]: " cooldown
         cooldown="${cooldown:-1800}"
+
+        read -r -p "SSH Host [Empty=skip ssh]: " host        
+                
+        #ssh is optional so its skippable
+        if [[ -n "$host" ]]
+        then
+            read -r -p "SSH Username [empty=$USER]: " user
+            read -r -p "SSH Keyfile Path [~/.ssh/id_rsa]: " keyfile_path
+            read -r -p "Dockerfile Path [~/docker]: " cwd
+            user="${user:-$USER}"
+            keyfile_path="${keyfile_path:-~/.ssh/id_rsa}"
+            cwd="${cwd:-~/docker}"
+        fi        
+
         if [[ -n "$iface" && -n "$ip" && -n "$port" && -n "$mac" ]]; then
-            add_device_line "$iface" "$ip" "$port" "$mac" "$cooldown"
+            add_device_line "$iface" "$ip" "$port" "$mac" "$host" "$user" "$keyfile_path" "$cwd" "$cooldown"
             echo "Added: $iface -> $ip:$port"
         else
             echo "Skipped (missing required field)."
