@@ -1,2 +1,2 @@
 sudo apt update
-sudo apt install -y python3 python3-pcapy iputils-ping python3-paramiko
+sudo apt install -y python3 python3-pcapy iputils-ping python3-paramiko python3-yaml

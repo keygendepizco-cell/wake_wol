@@ -10,6 +10,7 @@ import sys
 import threading
 import time
 import paramiko
+import yaml
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
@@ -31,7 +32,18 @@ logging.basicConfig(
 logger = logging.getLogger("wol-listener-pcapy")
 
 stop_event = threading.Event()
+@dataclass
+class Webhook:
+    url: str
+    token: str
+    header: str = "Authorization"
 
+@dataclass
+class Composer:
+    host: str
+    user: str
+    keyfile: str
+    pwd: str
 
 @dataclass
 class Device:
@@ -39,10 +51,10 @@ class Device:
     target_ip: str
     target_port: int
     target_mac: str
-    target_host: str | None
-    target_user: str | None
-    target_keyfile: str  | None
-    target_pwd: str | None
+
+    composer: Composer | None
+    webhook: Webhook | None
+
     cooldown_sec: int = DEFAULT_COOLDOWN_SEC
     ping_timeout_sec: int = DEFAULT_PING_TIMEOUT_SEC
     ping_count: int = DEFAULT_PING_COUNT
@@ -186,22 +198,22 @@ def parse_device_line(line: str, line_no: int) -> Optional[Device]:
     cooldown_sec = DEFAULT_COOLDOWN_SEC
     if len(parts) >= 5 and parts[4]:
         cooldown_sec = int(parts[4])
-
-    target_host = None
-    target_user = None
-    target_keyfile = None
-    target_pwd= None
+    
+    composer: Composer = None
     if len(parts) >= 8:
         if (
             parts[5] and
             parts[6] and
             parts[7] and
             parts[8]
-        ): 
-            target_host = parts[5]
-            target_user = parts[6]
-            target_keyfile=parts[7]
-            target_pwd=parts[8]
+        ):
+            composer = Composer(
+                host= parts[5],
+                user= parts[6],
+                keyfile= parts[7],
+                pwd=parts[8]
+            ) 
+            
 
     return Device(
         interface=interface,
@@ -209,15 +221,68 @@ def parse_device_line(line: str, line_no: int) -> Optional[Device]:
         target_port=target_port,
         target_mac=target_mac,
         cooldown_sec=cooldown_sec,
-        target_host=target_host,
-        target_user=target_user,
-        target_keyfile=target_keyfile,
-        target_pwd=target_pwd
+        composer=composer
     )
 
-
-def load_devices_from_file(filepath: str) -> List[Device]:
+def load_devices_from_yml_file(filepath: str) -> List[Device]:
     devices: List[Device] = []
+    with open(filepath, "r", encoding="utf-8") as f:
+        yaml = yaml.safe_load_all(f)
+# interface: enp3s0
+# ip: 192.168.93.23
+# port: 11434
+# mac: af:fe:af:fe:af:fe
+# cooldown: 1800 #optional
+# composer:
+#     host: kdesk.fritz.box
+#     user: keygen
+#     keyfile: ~/.ssh/id_rsa
+#     pwd: ~/docker/apps/ollama
+# webhook:
+#     url: https://hook.knetwork.ipv64.de
+#     token: asdahiopihodwiaaiojdaöoij
+#     header: authorization
+    for device_definition in yaml:
+        composer_data = device_definition.get("composer", None)
+        webhook_data = device_definition.get("webhook", None)
+
+        composer: Composer = None
+        webhook: Webhook = None
+
+        if composer_data:
+            composer = Composer(
+                host=composer_data["host"],
+                user=composer_data["user"],
+                keyfile=composer_data["keyfile"],
+                pwd=composer_data["pwd"]
+            )
+        
+        if webhook_data:
+            webhook = Webhook(
+                url= webhook_data["url"],
+                token= webhook_data["token"],
+                header= webhook_data["header"]
+            )
+
+        device = Device(
+            interface=device_definition["interface"],
+            target_ip= device_definition["ip"],
+            target_port=device_definition["port"],
+            target_mac=device_definition["mac"],
+            cooldown_sec=device_definition.get("cooldown",1800),
+
+            composer= composer,
+            webhook= webhook
+        )
+        devices.append(device)
+    return devices
+
+def load_devices_from_csv_file(filepath: str) -> List[Device]:
+    devices: List[Device] = []
+    
+    if filepath.endswith(".yml") or filepath.endswith(".yaml"):
+        return load_devices_from_yml_file(filepath)
+
     with open(filepath, "r", encoding="utf-8") as f:
         for line_no, line in enumerate(f, start=1):
             dev = parse_device_line(line, line_no)
@@ -454,7 +519,7 @@ def main() -> int:
             )
             return 1
         try:
-            devices = load_devices_from_file(args.device_file)
+            devices = load_devices_from_csv_file(args.device_file)
         except Exception as exc:
             logger.error("Failed to load device file %s: %s", args.device_file, exc)
             return 1
